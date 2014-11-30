@@ -6,25 +6,20 @@ import org.rickosborne.api.badger.data.User;
 import org.rickosborne.api.badger.data.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.annotation.Secured;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
 import java.security.Principal;
 import java.util.Date;
-import java.util.List;
 
 @RestController
 @RequestMapping("/users")
-@Secured({"ROLE_USER"})
+//@Secured({"ROLE_USER"})
 public class UsersController {
 
     private static final int MAX_CHECKINS = 30;
@@ -37,8 +32,9 @@ public class UsersController {
     }
 
     private User ensureAdminOrRequestedUser (Long userId, Principal principal) {
-        Authentication currentUser = (Authentication) principal;
         User user = userRepository.findById(userId);
+        if (user != null) return user; // remove me
+        Authentication currentUser = (Authentication) principal;
         if (user == null) throw new AccessDeniedException("You aren't really here.");
         if (hasRole(currentUser, "ROLE_TRUSTED_USER") || (user.getUsername().equals(currentUser.getName()))) return user;
         throw new AccessDeniedException("Can't access another user.");
@@ -52,14 +48,17 @@ public class UsersController {
 
     private final static Sort sortNames = new Sort(new Sort.Order(Sort.Direction.ASC, "nameLast"), new Sort.Order(Sort.Direction.ASC, "nameFirst"));
 
-//    @RequestMapping(method = RequestMethod.GET)
-//    public @ResponseBody boolean yup() { return true; }
-
     @RequestMapping(method = RequestMethod.GET)
     @Secured({"ROLE_TRUSTED_USER"})
     public Iterable<User> index(@RequestParam(value = "q", required = false) String query) {
         if ((query != null) && !query.isEmpty()) return userRepository.findByNameFirstContainingOrNameLastContainingOrEmailContaining(query, query, query, sortNames);
         return userRepository.findAll(sortNames);
+    }
+
+    @RequestMapping(value = "/me", method = RequestMethod.GET)
+    public User me(Principal currentUser) {
+//        return userRepository.findById(Long.valueOf(1));
+        return userRepository.findByEmail(currentUser.getName());
     }
 
     @RequestMapping(value = "/{userId}/patients")
@@ -80,7 +79,6 @@ public class UsersController {
     }
 
     @RequestMapping(value = "/{userId}/checkIns")
-    @Transactional
     public Iterable<CheckIn> checkIns (@PathVariable("userId") Long userId, Principal currentUser) {
         return checkInRepository.findByUserOrderByDateSubmittedDesc(ensureAdminOrRequestedUser(userId, currentUser),
                 new PageRequest(0, MAX_CHECKINS));

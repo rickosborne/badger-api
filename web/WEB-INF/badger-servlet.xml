@@ -3,16 +3,15 @@
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xmlns:mvc="http://www.springframework.org/schema/mvc"
        xmlns:context="http://www.springframework.org/schema/context"
-       xmlns:jpa="http://www.springframework.org/schema/data/jpa"
        xmlns:sec="http://www.springframework.org/schema/security"
+       xmlns:jpa="http://www.springframework.org/schema/data/jpa"
+       xmlns:oauth2="http://www.springframework.org/schema/security/oauth2"
        xsi:schemaLocation="http://www.springframework.org/schema/beans
        http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
        http://www.springframework.org/schema/mvc
        http://www.springframework.org/schema/mvc/spring-mvc.xsd
-       http://www.springframework.org/schema/data/jpa
-       http://www.springframework.org/schema/data/jpa/spring-jpa.xsd
        http://www.springframework.org/schema/context
-       http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd">
+       http://www.springframework.org/schema/context/spring-context.xsd http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security.xsd http://www.springframework.org/schema/data/jpa http://www.springframework.org/schema/data/jpa/spring-jpa.xsd http://www.springframework.org/schema/security/oauth2 http://www.springframework.org/schema/security/spring-security-oauth2.xsd">
 
     <context:property-placeholder location="/WEB-INF/application.properties"/>
 
@@ -63,10 +62,30 @@
             entity-manager-factory-ref="entityManagerFactory"
             transaction-manager-ref="transactionManager"/>
 
-    <sec:http auto-config="true" authentication-manager-ref="authenticationManager" use-expressions="true">
-        <sec:intercept-url pattern="/users*" access="hasAnyRole('ROLE_USER','ROLE_TRUSTED_USER')" />
+    <sec:http pattern="/oauth/token" create-session="stateless" authentication-manager-ref="authenticationManager">
+        <sec:intercept-url pattern="/oauth/token" access="IS_AUTHENTICATED_FULLY" />
+        <sec:anonymous enabled="false" />
+        <sec:http-basic entry-point-ref="clientAuthenticationEntryPoint" />
+        <sec:access-denied-handler ref="oauthAccessDeniedHandler" />
     </sec:http>
-    <sec:global-method-security secured-annotations="enabled" pre-post-annotations="enabled" />
+
+    <sec:http authentication-manager-ref="authenticationManager" use-expressions="true" realm="badgerMobile" auto-config="true">
+        <sec:intercept-url pattern="/users*" access="ROLE_TRUSTED_USER" />
+        <sec:intercept-url pattern="/users*" access="ROLE_USER" />
+    </sec:http>
+    <!--<sec:http entry-point-ref="oauthAuthenticationEntryPoint" authentication-manager-ref="authenticationManager" use-expressions="true" realm="badgerMobile">-->
+        <!--&lt;!&ndash;<sec:intercept-url pattern="/**" access="#oauth2.hasScope('read')" />&ndash;&gt;-->
+        <!--&lt;!&ndash;<sec:intercept-url pattern="/**" access="#oauth2.hasScope('write')" />&ndash;&gt;-->
+        <!--<sec:intercept-url pattern="/users*" access="ROLE_TRUSTED_USER" />-->
+        <!--<sec:intercept-url pattern="/users*" access="ROLE_USER" />-->
+        <!--<sec:custom-filter ref="resourceServerFilter" before="PRE_AUTH_FILTER" />-->
+        <!--<sec:access-denied-handler ref="oauthAccessDeniedHandler" />-->
+    <!--</sec:http>-->
+    <sec:global-method-security secured-annotations="enabled" pre-post-annotations="enabled">
+        <sec:expression-handler ref="oauthExpressionHandler" />
+    </sec:global-method-security>
+    <oauth2:expression-handler id="oauthExpressionHandler" />
+    <oauth2:web-expression-handler id="oauthWebExpressionHandler" />
     <!--
     <bean class="org.rickosborne.api.badger.service.ClientAndUserDetailsService" id="clientAndUserDetailsService">
         <constructor-arg type="org.springframework.security.oauth2.provider.ClientDetailsService"/>
@@ -94,6 +113,35 @@
                     authorities-by-username-query="SELECT u.email AS username, CONCAT('ROLE_',a.authority) AS rolename FROM user AS u INNER JOIN authorities AS a ON (u.email = ?) AND (u.isEnabled = 1) AND (((u.isAdmin = 1) AND (a.authority = 'TRUSTED_USER')) OR (a.authority = 'USER'))"/>
         </sec:authentication-provider>
     </sec:authentication-manager>
+    <oauth2:resource-server id="resourceServerFilter" authentication-manager-ref="authenticationManager" token-services-ref="tokenServices" resource-id="badgerMobile" />
+    <bean id="oauthAuthenticationEntryPoint"
+          class="org.springframework.security.oauth2.provider.error.OAuth2AuthenticationEntryPoint">
+        <property name="realmName" value="badgerMobile" />
+    </bean>
+    <bean id="clientAuthenticationEntryPoint"
+          class="org.springframework.security.oauth2.provider.error.OAuth2AuthenticationEntryPoint">
+        <property name="realmName" value="badgerMobile"/>
+        <property name="typeName" value="Basic"/>
+    </bean>
+    <bean id="oauthAccessDeniedHandler" class="org.springframework.security.oauth2.provider.error.OAuth2AccessDeniedHandler" />
+    <bean id="clientCredentialsTokenEndpointFilter" class="org.springframework.security.oauth2.provider.client.ClientCredentialsTokenEndpointFilter">
+        <property name="authenticationManager" ref="authenticationManager"/>
+    </bean>
+
+    <bean id="clientDetailsUserService" class="org.springframework.security.oauth2.provider.client.ClientDetailsUserDetailsService">
+        <constructor-arg ref="clientDetails" />
+    </bean>
+
+    <bean id="tokenStore" class="org.springframework.security.oauth2.provider.token.store.InMemoryTokenStore" />
+
+    <bean id="tokenServices" class="org.springframework.security.oauth2.provider.token.DefaultTokenServices">
+        <property name="tokenStore" ref="tokenStore"/>
+        <property name="supportRefreshToken" value="true"/>
+        <property name="accessTokenValiditySeconds" value="300000"/>
+        <property name="clientDetailsService" ref="clientDetails"/>
+    </bean>
+
+    <bean id="clientDetails" class="org.springframework.security.oauth2.provider.client.InMemoryClientDetailsService" />
 
     <bean id="bcryptEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder">
         <constructor-arg type="int" value="10" />

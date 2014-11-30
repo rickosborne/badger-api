@@ -35,7 +35,7 @@ public class OAuth2SecurityConfiguration {
 
     @Configuration
     @EnableWebMvcSecurity
-    protected static class SecurityConfig extends WebSecurityConfigurerAdapter {
+    public static class SecurityConfig extends WebSecurityConfigurerAdapter {
 
         @Autowired
         private UserDetailsService userDetailsService;
@@ -62,7 +62,7 @@ public class OAuth2SecurityConfiguration {
 
     @Configuration
     @EnableResourceServer
-    protected static class ResourceServer extends ResourceServerConfigurerAdapter {
+    public static class ResourceServer extends ResourceServerConfigurerAdapter {
 
         @Override
         public void configure(HttpSecurity http) throws Exception {
@@ -77,7 +77,7 @@ public class OAuth2SecurityConfiguration {
     @Configuration
     @EnableAuthorizationServer
     @Order(Ordered.LOWEST_PRECEDENCE - 100)
-    protected static class OAuth2Config extends AuthorizationServerConfigurerAdapter {
+    public static class OAuth2Config extends AuthorizationServerConfigurerAdapter {
 
         @Autowired
         private AuthenticationManager authenticationManager;
