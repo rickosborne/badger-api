@@ -7,6 +7,7 @@ import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
+import javax.validation.constraints.NotNull;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -18,16 +19,20 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private long id;
 
-    private String nameFirst = null;
-    private String nameLast = null;
-    private String email = null;
-    private String password = null;
-    @JsonIgnore private boolean isAdmin = false;
-    private boolean isEnabled = true;
+    @NotNull private String nameFirst;
+    @NotNull private String nameLast;
+    @NotNull private String email;
+    @NotNull private String password;
+    @NotNull @JsonIgnore private boolean isAdmin = false;
+    @NotNull private boolean isEnabled = true;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name="user_patients")
-    private Set<User> patients = new HashSet<User>();
+    private Set<User> patients;
+
+    @OneToMany(orphanRemoval = true)
+    @JoinColumn(name = "userId")
+    private Set<CheckIn> checkIns;
 
     public static User create(String email, String password, String... authorities) {
         return new User(email, password, authorities);
@@ -73,4 +78,5 @@ public class User implements UserDetails {
     @Override public boolean isEnabled() { return isEnabled; }
 
     @JsonIgnore public Set<User> getPatients() { return patients; }
+    @JsonIgnore public Set<CheckIn> getCheckIns() { return checkIns; }
 }

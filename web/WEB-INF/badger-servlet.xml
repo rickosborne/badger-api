@@ -98,4 +98,5 @@
     <bean id="bcryptEncoder" class="org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder">
         <constructor-arg type="int" value="10" />
     </bean>
+
 </beans>
