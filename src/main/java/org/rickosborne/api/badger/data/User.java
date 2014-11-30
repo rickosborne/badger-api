@@ -6,11 +6,10 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
+import javax.persistence.*;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @JsonIgnoreProperties(ignoreUnknown = true, value = {"isAdmin", "password", "authorities"})
@@ -25,6 +24,10 @@ public class User implements UserDetails {
     private String password = null;
     @JsonIgnore private boolean isAdmin = false;
     private boolean isEnabled = true;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name="user_patients")
+    private Set<User> patients = new HashSet<User>();
 
     public static User create(String email, String password, String... authorities) {
         return new User(email, password, authorities);
@@ -68,4 +71,6 @@ public class User implements UserDetails {
     @Override @JsonIgnore public boolean isAccountNonLocked() { return isEnabled; }
     @Override @JsonIgnore public boolean isCredentialsNonExpired() { return isEnabled; }
     @Override public boolean isEnabled() { return isEnabled; }
+
+    @JsonIgnore public Set<User> getPatients() { return patients; }
 }

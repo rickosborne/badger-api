@@ -5,14 +5,16 @@ import org.rickosborne.api.badger.service.ClientAndUserDetailsService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.servlet.configuration.EnableWebMvcSecurity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.oauth2.config.annotation.builders.InMemoryClientDetailsServiceBuilder;
@@ -23,14 +25,40 @@ import org.springframework.security.oauth2.config.annotation.web.configuration.E
 import org.springframework.security.oauth2.config.annotation.web.configuration.ResourceServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.provider.ClientDetailsService;
-import org.springframework.security.oauth2.provider.client.InMemoryClientDetailsService;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
+import javax.sql.DataSource;
 import java.util.Arrays;
-
 
 @Configuration
 public class OAuth2SecurityConfiguration {
+
+    @Configuration
+    @EnableWebMvcSecurity
+    protected static class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+        @Autowired
+        private UserDetailsService userDetailsService;
+
+        @Autowired
+        private DataSource dataSource;
+
+        @Autowired
+        protected void registerAuthentication(final AuthenticationManagerBuilder auth) throws Exception {
+            auth.userDetailsService(userDetailsService);
+        }
+
+        @Override
+        protected void configure(AuthenticationManagerBuilder auth) throws Exception {
+            auth.jdbcAuthentication().dataSource(dataSource).and().userDetailsService(userDetailsService);
+        }
+
+//    @Autowired
+//    public void configureGlobal(AuthenticationManagerBuilder auth) throws Exception {
+//        auth.jdbcAuthentication().withDefaultSchema();
+//    }
+
+    }
 
     @Configuration
     @EnableResourceServer
@@ -62,13 +90,13 @@ public class OAuth2SecurityConfiguration {
                     .authorizedGrantTypes("password")
                     .authorities("ROLE_CLIENT", "ROLE_TRUSTED_CLIENT")
                     .scopes("read", "write")
-                    .resourceIds("api")
+                    .resourceIds("users")
                 .and()
                 .withClient("user")
                     .authorizedGrantTypes("password")
-                    .authorities("ROLECLIENT")
+                    .authorities("ROLE_CLIENT")
                     .scopes("read")
-                    .resourceIds("api")
+                    .resourceIds("users")
                     .accessTokenValiditySeconds(3600)
                 .and()
                 .build();

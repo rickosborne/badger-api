@@ -13,6 +13,7 @@ public interface UserRepository extends CrudRepository<User, Long> {
 
     public List<User> findAll();
     public User findById(Long id);
+    public User findByEmail(String email);
 //    public User findByUserId(Long id);
     public List<User> findByNameFirstContainingOrNameLastContainingOrEmailContaining(String firstLike, String lastLike, String emailLike);
 

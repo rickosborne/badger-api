@@ -3,14 +3,29 @@ package org.rickosborne.api.badger.controller;
 import org.rickosborne.api.badger.data.User;
 import org.rickosborne.api.badger.data.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.annotation.Secured;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import javax.validation.Valid;
+import java.security.Principal;
 import java.util.List;
 
 @RestController
 @RequestMapping("/users")
+@Secured({"ROLE_USER"})
 public class UsersController {
+
+    private User ensureAdminOrRequestedUser (Long userId, Principal principal) {
+        Authentication currentUser = (Authentication) principal;
+        User user = userRepository.findByEmail(currentUser.getName());
+        if (user == null) throw new AccessDeniedException("You aren't really here.");
+        if (currentUser.getAuthorities().contains("ROLE_TRUSTED_USER") || (user.getId() == userId)) return user;
+        throw new AccessDeniedException("Can't access another user.");
+    }
 
     @Autowired
     private UserRepository userRepository;
@@ -19,8 +34,14 @@ public class UsersController {
 //    public @ResponseBody boolean yup() { return true; }
 
     @RequestMapping(method = RequestMethod.GET)
+    @Secured({"ROLE_TRUSTED_USER"})
     public Iterable<User> index() {
         return userRepository.findAll();
+    }
+
+    @RequestMapping(value = "/{userId}/patients")
+    public Iterable<User> patients (@PathVariable Long userId, Principal currentUser) {
+        return ensureAdminOrRequestedUser(userId, currentUser).getPatients();
     }
 
     @RequestMapping(value = "/{userId}", method = RequestMethod.GET)
